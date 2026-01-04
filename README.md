@@ -31,15 +31,11 @@ A Windows speech-to-text application that uses Groq's Whisper API. Hold a hotkey
 
 3. **Configure your API key:**
    ```bash
-   cp settings.example.json settings.json
+   cp config.example.py config.py
    ```
-   Then edit `settings.json` and replace `YOUR_GROQ_API_KEY_HERE` with your actual Groq API key:
-   ```json
-   {
-     "api_key": "your_actual_groq_api_key",
-     "language": "en",
-     "language_name": "English"
-   }
+   Then edit `config.py` and replace `YOUR_GROQ_API_KEY_HERE` with your actual Groq API key:
+   ```python
+   GROQ_API_KEY = "your_actual_groq_api_key"
    ```
 
 ## Usage
