@@ -1,6 +1,15 @@
+"""
+Wisper - Speech to Text Application
+Version 1.0
+
+Hold Ctrl+Win to record, release to transcribe.
+"""
 import os
+import sys
 import time
 import threading
+import atexit
+import signal
 import keyboard
 import pyperclip
 import pyautogui
@@ -11,7 +20,9 @@ from pystray import MenuItem as item
 from logger import setup_logger, setup_global_exception_handler, get_logger
 from recorder import AudioRecorder
 from transcriber import Transcriber
-from overlay import StatusOverlay
+from state_machine import StateMachine
+from history import TranscriptionHistory
+from gui_manager import GUIManager
 
 # Initialize logging first
 setup_logger()
@@ -35,21 +46,41 @@ LANGUAGES = {
     "Arabic": "ar",
 }
 
+# Global app instance for cleanup
+_app_instance = None
+
+
+def cleanup_on_exit():
+    """Cleanup handler for atexit."""
+    global _app_instance
+    if _app_instance:
+        logger.info("Running atexit cleanup")
+        try:
+            _app_instance.emergency_cleanup()
+        except Exception as e:
+            logger.error(f"Cleanup error: {e}")
+
 
 class WisperApp:
     def __init__(self):
+        global _app_instance
+        _app_instance = self
+
         logger.info("Initializing WisperApp")
         self.recorder = None
         self.transcriber = None
         self.is_running = True
         self.recording_thread = None
-        self.transcription_thread = None
         self.language = "en"
         self.language_name = "English"
         self.tray_icon = None
-        self.overlay = None
-        self._recording_lock = threading.Lock()
-        self._is_busy = False  # Busy during transcription
+        self.gui = None
+        self.state_machine = StateMachine()
+        self.history = TranscriptionHistory()
+        self._cleanup_done = False
+
+        # Register cleanup handlers
+        atexit.register(cleanup_on_exit)
 
     def create_icon_image(self, recording=False):
         color = "red" if recording else "green"
@@ -77,15 +108,26 @@ class WisperApp:
             return False
 
         try:
-            self.overlay = StatusOverlay()
+            self.gui = GUIManager(
+                history=self.history,
+                on_language_change=self._on_language_change_from_gui
+            )
         except Exception as e:
-            logger.error(f"Failed to initialize overlay: {e}")
-            # Overlay is optional, continue without it
-            self.overlay = None
+            logger.error(f"Failed to initialize GUI: {e}")
+            print(f"Warning: GUI failed to initialize, continuing without GUI")
+            self.gui = None
 
         logger.info("Initialization complete")
         print("Groq API connected successfully")
         return True
+
+    def _on_language_change_from_gui(self, name, code):
+        """Callback when language is changed from Settings GUI."""
+        self.language = code
+        self.language_name = name
+        logger.info(f"Language changed from GUI to: {name} ({code})")
+        print(f"\nLanguage changed to: {name}")
+        print(f"Ready. Hold {HOTKEY.upper()} to record [{name}]...")
 
     def beep_start(self):
         try:
@@ -110,67 +152,64 @@ class WisperApp:
             logger.warning(f"Beep success failed: {e}")
 
     def record_audio_loop(self):
+        """Recording loop - runs in separate thread."""
         logger.debug("Recording loop started")
         try:
-            while self.recorder and self.recorder.is_recording:
-                self.recorder.read_chunk()
+            while self.recorder and not self.recorder._stop_event.is_set():
+                if not self.recorder.read_chunk():
+                    break
                 time.sleep(0.01)
         except Exception as e:
             logger.error(f"Error in recording loop: {e}")
         logger.debug("Recording loop ended")
 
     def on_hotkey_press(self):
-        with self._recording_lock:
-            # Check if busy (transcribing)
-            if self._is_busy:
-                logger.debug("Busy transcribing, ignoring press")
-                return
+        # Attempt state transition first (atomic, with debounce/cooldown)
+        if not self.state_machine.start_recording():
+            return
 
-            if self.recorder and self.recorder.is_recording:
-                logger.debug("Already recording, ignoring press")
-                return
+        logger.info("Hotkey pressed - starting recording")
 
-            logger.info("Hotkey pressed - starting recording")
+        # Beep in background thread
+        threading.Thread(target=self.beep_start, daemon=True).start()
 
-            try:
-                self.beep_start()
-            except Exception as e:
-                logger.error(f"Beep failed: {e}")
+        # Update GUI
+        if self.gui:
+            self.gui.overlay_recording()
 
-            try:
-                if self.overlay:
-                    self.overlay.recording()
-            except Exception as e:
-                logger.error(f"Overlay update failed: {e}")
+        print(f"\nRecording [{self.language_name}]... (release Ctrl+Win to stop)")
 
-            print(f"\nRecording [{self.language_name}]... (release Ctrl+Win to stop)")
+        # Update tray icon
+        try:
+            if self.tray_icon:
+                self.tray_icon.icon = self.create_icon_image(recording=True)
+        except Exception as e:
+            logger.error(f"Tray icon update failed: {e}")
 
-            try:
-                if self.tray_icon:
-                    self.tray_icon.icon = self.create_icon_image(recording=True)
-            except Exception as e:
-                logger.error(f"Tray icon update failed: {e}")
-
-            try:
-                if self.recorder:
-                    success = self.recorder.start_recording()
-                    if success:
-                        self.recording_thread = threading.Thread(
-                            target=self.record_audio_loop,
-                            name="RecordingThread"
-                        )
-                        self.recording_thread.start()
-                    else:
-                        logger.error("Failed to start recording")
-                        if self.overlay:
-                            self.overlay.error("Mic error")
-            except Exception as e:
-                logger.error(f"Failed to start recording: {e}")
-                if self.overlay:
-                    self.overlay.error("Error")
+        # Start recording
+        try:
+            if self.recorder:
+                success = self.recorder.start_recording()
+                if success:
+                    self.recording_thread = threading.Thread(
+                        target=self.record_audio_loop,
+                        name="RecordingThread",
+                        daemon=True
+                    )
+                    self.recording_thread.start()
+                else:
+                    logger.error("Failed to start recording")
+                    self.state_machine.reset_to_idle()
+                    if self.gui:
+                        self.gui.overlay_error("Mic error")
+        except Exception as e:
+            logger.error(f"Failed to start recording: {e}")
+            self.state_machine.reset_to_idle()
+            if self.gui:
+                self.gui.overlay_error("Error")
 
     def _do_transcription(self, audio_path):
-        """Run transcription in background thread"""
+        """Run transcription in background thread."""
         try:
             text = self.transcriber.transcribe(audio_path, language=self.language)
             if text:
@@ -178,6 +217,12 @@ class WisperApp:
                 print(f"\n{'='*50}")
                 print(text)
                 print(f"{'='*50}")
+
+                # Save to history
+                try:
+                    self.history.add(text, self.language)
+                except Exception as e:
+                    logger.error(f"Failed to save to history: {e}")
 
                 try:
                     pyperclip.copy(text)
@@ -187,29 +232,29 @@ class WisperApp:
                     logger.error(f"Paste failed: {e}")
 
                 self.beep_success()
-                if self.overlay:
-                    self.overlay.success()
+                if self.gui:
+                    self.gui.overlay_success()
                 print("[Pasted automatically]")
             else:
                 logger.warning("No speech detected")
                 print("No speech detected")
-                if self.overlay:
-                    self.overlay.error("No speech")
+                if self.gui:
+                    self.gui.overlay_error("No speech")
         except TimeoutError as e:
             logger.error(f"Transcription timeout: {e}")
             print("Transcription timeout - please try again")
-            if self.overlay:
-                self.overlay.error("Timeout")
+            if self.gui:
+                self.gui.overlay_error("Timeout")
         except ConnectionError as e:
             logger.error(f"Connection error: {e}")
             print("Connection error - check internet")
-            if self.overlay:
-                self.overlay.error("No internet")
+            if self.gui:
+                self.gui.overlay_error("No internet")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
             print(f"Transcription error: {e}")
-            if self.overlay:
-                self.overlay.error("Error")
+            if self.gui:
+                self.gui.overlay_error("Error")
         finally:
             try:
                 if audio_path and os.path.exists(audio_path):
@@ -218,96 +263,84 @@ class WisperApp:
             except Exception as e:
                 logger.error(f"Failed to cleanup temp file: {e}")
 
-            self._is_busy = False
-            logger.debug("Transcription complete, busy=False")
+            # Transition state (with cooldown)
+            self.state_machine.finish_transcription()
+            logger.debug("Transcription complete, state returned to IDLE")
             print(f"\nReady. Hold {HOTKEY.upper()} to record [{self.language_name}]...")
 
     def on_hotkey_release(self):
-        with self._recording_lock:
-            if not self.recorder or not self.recorder.is_recording:
-                logger.debug("Not recording, ignoring release")
-                return
+        # Attempt state transition first (atomic, with debounce)
+        if not self.state_machine.stop_recording():
+            return
 
-            logger.info("Hotkey released - stopping recording")
+        logger.info("Hotkey released - stopping recording")
 
+        # Beep in background thread
+        threading.Thread(target=self.beep_stop, daemon=True).start()
+
+        audio_path = None
+        duration = 0
+        try:
+            result = self.recorder.stop_recording()
+            if result:
+                audio_path, duration = result
+        except Exception as e:
+            logger.error(f"Failed to stop recording: {e}")
+
+        # Update tray icon
+        try:
+            if self.tray_icon:
+                self.tray_icon.icon = self.create_icon_image(recording=False)
+        except Exception as e:
+            logger.error(f"Tray icon update failed: {e}")
+
+        # Wait for recording thread to finish
+        if self.recording_thread:
             try:
-                self.beep_stop()
+                self.recording_thread.join(timeout=1.0)
+                if self.recording_thread.is_alive():
+                    logger.warning("Recording thread still running, continuing anyway")
             except Exception as e:
-                logger.error(f"Beep failed: {e}")
+                logger.error(f"Error joining recording thread: {e}")
+            self.recording_thread = None
 
-            audio_path = None
-            duration = 0
+        if not audio_path:
+            logger.warning("No audio recorded")
+            print("No audio recorded")
+            if self.gui:
+                self.gui.overlay_hide()
+            self.state_machine.reset_to_idle()
+            return
+
+        # Skip very short recordings
+        MIN_DURATION = 0.3
+        if duration < MIN_DURATION:
+            logger.info(f"Recording too short ({duration:.2f}s), skipping")
+            print(f"Recording too short ({duration:.1f}s), skipping...")
+            if self.gui:
+                self.gui.overlay_hide()
             try:
-                result = self.recorder.stop_recording()
-                if result:
-                    audio_path, duration = result
+                if audio_path and os.path.exists(audio_path):
+                    os.remove(audio_path)
             except Exception as e:
-                logger.error(f"Failed to stop recording: {e}")
+                logger.error(f"Failed to cleanup: {e}")
+            self.state_machine.reset_to_idle()
+            print(f"Ready. Hold {HOTKEY.upper()} to record [{self.language_name}]...")
+            return
 
-            try:
-                if self.tray_icon:
-                    self.tray_icon.icon = self.create_icon_image(recording=False)
-            except Exception as e:
-                logger.error(f"Tray icon update failed: {e}")
+        # Show transcribing overlay
+        if self.gui:
+            self.gui.overlay_transcribing()
 
-            # Wait for recording thread to finish
-            if self.recording_thread:
-                try:
-                    self.recording_thread.join(timeout=2.0)
-                    if self.recording_thread.is_alive():
-                        logger.warning("Recording thread did not finish in time, continuing anyway")
-                    else:
-                        logger.debug("Recording thread finished")
-                except Exception as e:
-                    logger.error(f"Error joining recording thread: {e}")
-                self.recording_thread = None
+        print("Transcribing...")
 
-            if not audio_path:
-                logger.warning("No audio recorded")
-                print("No audio recorded")
-                if self.overlay:
-                    self.overlay.hide()
-                return
-
-            # Skip very short recordings (likely accidental)
-            MIN_DURATION = 0.3  # seconds
-            if duration < MIN_DURATION:
-                logger.info(f"Recording too short ({duration:.2f}s < {MIN_DURATION}s), skipping")
-                print(f"Recording too short ({duration:.1f}s), skipping...")
-                try:
-                    if self.overlay:
-                        self.overlay.hide()
-                except Exception as e:
-                    logger.error(f"Error hiding overlay: {e}")
-                try:
-                    if audio_path and os.path.exists(audio_path):
-                        os.remove(audio_path)
-                        logger.debug(f"Cleaned up short recording: {audio_path}")
-                except Exception as e:
-                    logger.error(f"Failed to cleanup short recording: {e}")
-                print(f"Ready. Hold {HOTKEY.upper()} to record [{self.language_name}]...")
-                return
-
-            # Set busy flag before starting transcription
-            self._is_busy = True
-            logger.debug("Starting transcription, busy=True")
-
-            try:
-                if self.overlay:
-                    self.overlay.transcribing()
-            except Exception as e:
-                logger.error(f"Overlay update failed: {e}")
-
-            print("Transcribing...")
-
-            # Run transcription in background thread
-            self.transcription_thread = threading.Thread(
-                target=self._do_transcription,
-                args=(audio_path,),
-                name="TranscriptionThread",
-                daemon=True
-            )
-            self.transcription_thread.start()
+        # Run transcription in background thread
+        threading.Thread(
+            target=self._do_transcription,
+            args=(audio_path,),
+            name="TranscriptionThread",
+            daemon=True
+        ).start()
 
     def set_language(self, name, code):
         def callback(icon, item):
@@ -316,12 +349,20 @@ class WisperApp:
             logger.info(f"Language changed to: {name} ({code})")
             print(f"\nLanguage changed to: {name}")
             print(f"Ready. Hold {HOTKEY.upper()} to record [{name}]...")
+            if self.gui:
+                self.gui.set_language(name)
         return callback
 
     def check_language(self, name):
         def callback(item):
             return self.language_name == name
         return callback
+
+    def open_settings(self, icon, item):
+        """Open the settings window."""
+        logger.info("Opening settings window")
+        if self.gui:
+            self.gui.show_settings()
 
     def quit_app(self, icon, item):
         logger.info("Quit requested from tray menu")
@@ -345,6 +386,7 @@ class WisperApp:
         menu = pystray.Menu(
             item(f"Wisper - Hold {HOTKEY.upper()}", None, enabled=False),
             pystray.Menu.SEPARATOR,
+            item("Settings", self.open_settings),
             item("Language", pystray.Menu(*language_items)),
             pystray.Menu.SEPARATOR,
             item("Quit", self.quit_app)
@@ -363,6 +405,19 @@ class WisperApp:
             logger.info("Tray icon started")
         except Exception as e:
             logger.error(f"Failed to start tray icon: {e}")
+
+    def emergency_cleanup(self):
+        """Emergency cleanup for crashes."""
+        if self._cleanup_done:
+            return
+        self._cleanup_done = True
+
+        logger.info("Emergency cleanup...")
+        try:
+            if self.recorder:
+                self.recorder.cleanup()
+        except Exception as e:
+            logger.error(f"Recorder cleanup error: {e}")
 
     def run(self):
         logger.info("Starting Wisper application")
@@ -400,31 +455,40 @@ class WisperApp:
         except Exception as e:
             logger.critical(f"Critical error in main loop: {e}")
         finally:
-            logger.info("Shutting down...")
-            try:
-                if self.overlay:
-                    self.overlay.destroy()
-            except Exception as e:
-                logger.error(f"Error destroying overlay: {e}")
+            self.shutdown()
 
-            try:
-                if self.tray_icon:
-                    self.tray_icon.stop()
-            except Exception as e:
-                logger.error(f"Error stopping tray icon: {e}")
+    def shutdown(self):
+        """Clean shutdown."""
+        if self._cleanup_done:
+            return
+        self._cleanup_done = True
 
-            try:
-                if self.recorder:
-                    self.recorder.cleanup()
-            except Exception as e:
-                logger.error(f"Error cleaning up recorder: {e}")
+        logger.info("Shutting down...")
 
-            logger.info("Shutdown complete")
+        try:
+            if self.gui:
+                self.gui.destroy()
+        except Exception as e:
+            logger.error(f"Error destroying GUI: {e}")
+
+        try:
+            if self.tray_icon:
+                self.tray_icon.stop()
+        except Exception as e:
+            logger.error(f"Error stopping tray icon: {e}")
+
+        try:
+            if self.recorder:
+                self.recorder.cleanup()
+        except Exception as e:
+            logger.error(f"Error cleaning up recorder: {e}")
+
+        logger.info("Shutdown complete")
 
 
 def main():
     logger.info("="*50)
-    logger.info("Wisper starting")
+    logger.info("Wisper V1.0 starting")
     logger.info("="*50)
 
     try:

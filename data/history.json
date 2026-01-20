@@ -1,0 +1,32 @@
+[
+  {
+    "text": "Let me test is it working or not and how can we migrate from running the application from CMD to running from like app shortcut or the setup?",
+    "language": "en",
+    "timestamp": "2026-01-20T08:48:52.464234"
+  },
+  {
+    "text": "Citing GUI is not good. It's not showing me separately what I can copy or what I can do. It's just showing me what is like text paragraph. It's not showing this one is separate transcript. Another one is separate transcript.",
+    "language": "en",
+    "timestamp": "2026-01-20T08:52:44.604058"
+  },
+  {
+    "text": "App crashes multiple times. Suppose I'm recording a long session and I press multiple times Ctrl plus Windows. The app crashes. I don't know what is problem. You need to check like end to and then check what is wrong where we are not handling the error case perfectly. App crashes and the logs are also not showing why it's not working, why is app crashing. And another thing is that v1 is already at the start so we need to remove v0 and we need to add even to a destruct.",
+    "language": "en",
+    "timestamp": "2026-01-20T08:55:03.117833"
+  },
+  {
+    "text": "Let me just make",
+    "language": "en",
+    "timestamp": "2026-01-20T09:02:41.738135"
+  },
+  {
+    "text": "It seems networking caused a place to multiple times.",
+    "language": "en",
+    "timestamp": "2026-01-20T09:02:49.503266"
+  },
+  {
+    "text": "It seems it's working and now we want to move toward the AttoStart. So there is a whisper version 1 in AttoStart. We need to remove that and add whisper 1. Remove whisper 0, add whisper 1.",
+    "language": "en",
+    "timestamp": "2026-01-20T09:03:16.399977"
+  }
+]
