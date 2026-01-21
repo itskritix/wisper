@@ -129,7 +129,7 @@ class GUIManager:
         self.overlay_label = tk.Label(
             self.overlay_window,
             text="",
-            font=("Segoe UI", 14, "bold"),
+            font=("DejaVu Sans", 14, "bold"),
             fg="white",
             bg="#333333",
             padx=20,
@@ -254,7 +254,7 @@ class GUIManager:
         self.history_listbox = tk.Listbox(
             list_frame,
             yscrollcommand=scrollbar.set,
-            font=("Segoe UI", 10),
+            font=("DejaVu Sans", 10),
             selectmode=tk.SINGLE
         )
         self.history_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -264,7 +264,7 @@ class GUIManager:
         hint_label = ttk.Label(
             history_frame,
             text="Double-click an item to copy to clipboard",
-            font=("Segoe UI", 9),
+            font=("DejaVu Sans", 9),
             foreground="gray"
         )
         hint_label.pack(anchor=tk.W, pady=(5, 0))

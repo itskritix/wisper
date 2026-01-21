@@ -1,10 +1,10 @@
-# Wisper
+# Wisper (Linux)
 
-A Windows speech-to-text application that uses Groq's Whisper API. Hold a hotkey to record, release to transcribe, and the text is automatically pasted.
+A Linux speech-to-text application that uses Groq's Whisper API. Hold a hotkey to record, release to transcribe, and the text is automatically pasted.
 
 ## Features
 
-- **Hold-to-record**: Hold `Ctrl+Win` to record, release to transcribe
+- **Hold-to-record**: Hold `Ctrl+Super` to record, release to transcribe
 - **Auto-paste**: Transcribed text is automatically copied and pasted
 - **Multi-language**: Supports 11 languages (English, Hindi, Spanish, French, German, Chinese, Japanese, Korean, Portuguese, Russian, Arabic)
 - **System tray**: Runs in background with tray icon for language selection
@@ -12,24 +12,38 @@ A Windows speech-to-text application that uses Groq's Whisper API. Hold a hotkey
 
 ## Requirements
 
-- Windows 10/11
+- Linux (tested on Ubuntu 22.04+)
 - Python 3.8+
+- PulseAudio (for audio recording and feedback sounds)
+- xdotool (for auto-paste functionality)
 - Groq API key (get one at https://console.groq.com)
 
 ## Installation
 
-1. Clone the repository:
+1. Install system dependencies:
+   ```bash
+   sudo apt install python3-tk python3-dev portaudio19-dev xdotool pulseaudio-utils
+   ```
+
+2. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/wisper.git
    cd wisper
+   git checkout linux
    ```
 
-2. Install dependencies:
+3. Create virtual environment (recommended):
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+4. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Configure your API key:**
+5. **Configure your API key:**
    ```bash
    cp config.example.py config.py
    ```
@@ -42,26 +56,52 @@ A Windows speech-to-text application that uses Groq's Whisper API. Hold a hotkey
 
 Run the application:
 ```bash
-python main.py
+./run_wisper.sh
 ```
 
-Or use the batch file:
+Or directly:
 ```bash
-run.bat
+python3 main.py
 ```
 
 ### Controls
 
-- **Hold `Ctrl+Win`**: Start recording
-- **Release `Ctrl+Win`**: Stop recording and transcribe
+- **Hold `Ctrl+Super`**: Start recording
+- **Release `Ctrl+Super`**: Stop recording and transcribe
 - **Right-click tray icon**: Change language or quit
 
 ## Optional: Run at Startup
 
-To run Wisper automatically at Windows startup:
+To run Wisper automatically at login, create a desktop entry:
+
 ```bash
-add_to_startup.bat
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/wisper.desktop << EOF
+[Desktop Entry]
+Type=Application
+Name=Wisper
+Exec=/path/to/wisper/run_wisper.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+EOF
 ```
+
+Replace `/path/to/wisper` with the actual path to your wisper installation.
+
+## Troubleshooting
+
+### No audio recording
+- Ensure PulseAudio is running: `pulseaudio --check`
+- Check microphone permissions and default input device
+
+### Auto-paste not working
+- Install xdotool: `sudo apt install xdotool`
+- Ensure you're running on X11 (Wayland may have limitations)
+
+### System tray not showing
+- Install AppIndicator support for your desktop environment
+- On GNOME, install the AppIndicator extension
 
 ## License
 

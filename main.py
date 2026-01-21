@@ -1,21 +1,20 @@
 """
-Wisper - Speech to Text Application
+Wisper - Speech to Text Application (Linux Version)
 Version 1.0
 
-Hold Ctrl+Win to record, release to transcribe.
+Hold Ctrl+Super to record, release to transcribe.
 """
 import os
 import sys
 import time
 import threading
 import atexit
-import signal
-import keyboard
+import subprocess
 import pyperclip
-import pyautogui
 import pystray
 from PIL import Image, ImageDraw
 from pystray import MenuItem as item
+from pynput import keyboard
 
 from logger import setup_logger, setup_global_exception_handler, get_logger
 from recorder import AudioRecorder
@@ -30,7 +29,7 @@ setup_global_exception_handler()
 logger = get_logger("wisper.main")
 
 
-HOTKEY = "ctrl+win"
+HOTKEY_DISPLAY = "Ctrl+Super"
 
 LANGUAGES = {
     "English": "en",
@@ -78,6 +77,12 @@ class WisperApp:
         self.state_machine = StateMachine()
         self.history = TranscriptionHistory()
         self._cleanup_done = False
+
+        # Hotkey state tracking
+        self._ctrl_pressed = False
+        self._super_pressed = False
+        self._hotkey_active = False
+        self._key_lock = threading.Lock()
 
         # Register cleanup handlers
         atexit.register(cleanup_on_exit)
@@ -127,29 +132,40 @@ class WisperApp:
         self.language_name = name
         logger.info(f"Language changed from GUI to: {name} ({code})")
         print(f"\nLanguage changed to: {name}")
-        print(f"Ready. Hold {HOTKEY.upper()} to record [{name}]...")
+        print(f"Ready. Hold {HOTKEY_DISPLAY} to record [{name}]...")
 
     def beep_start(self):
+        """Play start recording beep using paplay."""
         try:
-            import winsound
-            winsound.Beep(800, 150)
+            subprocess.run(
+                ["paplay", "/usr/share/sounds/freedesktop/stereo/message.oga"],
+                capture_output=True,
+                timeout=1
+            )
         except Exception as e:
-            logger.warning(f"Beep start failed: {e}")
+            logger.debug(f"Beep start failed (audio feedback not available): {e}")
 
     def beep_stop(self):
+        """Play stop recording beep using paplay."""
         try:
-            import winsound
-            winsound.Beep(400, 150)
+            subprocess.run(
+                ["paplay", "/usr/share/sounds/freedesktop/stereo/bell.oga"],
+                capture_output=True,
+                timeout=1
+            )
         except Exception as e:
-            logger.warning(f"Beep stop failed: {e}")
+            logger.debug(f"Beep stop failed (audio feedback not available): {e}")
 
     def beep_success(self):
+        """Play success beep using paplay."""
         try:
-            import winsound
-            winsound.Beep(600, 100)
-            winsound.Beep(800, 100)
+            subprocess.run(
+                ["paplay", "/usr/share/sounds/freedesktop/stereo/complete.oga"],
+                capture_output=True,
+                timeout=1
+            )
         except Exception as e:
-            logger.warning(f"Beep success failed: {e}")
+            logger.debug(f"Beep success failed (audio feedback not available): {e}")
 
     def record_audio_loop(self):
         """Recording loop - runs in separate thread."""
@@ -177,7 +193,7 @@ class WisperApp:
         if self.gui:
             self.gui.overlay_recording()
 
-        print(f"\nRecording [{self.language_name}]... (release Ctrl+Win to stop)")
+        print(f"\nRecording [{self.language_name}]... (release {HOTKEY_DISPLAY} to stop)")
 
         # Update tray icon
         try:
@@ -227,7 +243,12 @@ class WisperApp:
                 try:
                     pyperclip.copy(text)
                     time.sleep(0.1)
-                    pyautogui.hotkey('ctrl', 'v')
+                    # Use xdotool for paste on Linux
+                    subprocess.run(
+                        ["xdotool", "key", "ctrl+v"],
+                        capture_output=True,
+                        timeout=2
+                    )
                 except Exception as e:
                     logger.error(f"Paste failed: {e}")
 
@@ -266,7 +287,7 @@ class WisperApp:
             # Transition state (with cooldown)
             self.state_machine.finish_transcription()
             logger.debug("Transcription complete, state returned to IDLE")
-            print(f"\nReady. Hold {HOTKEY.upper()} to record [{self.language_name}]...")
+            print(f"\nReady. Hold {HOTKEY_DISPLAY} to record [{self.language_name}]...")
 
     def on_hotkey_release(self):
         # Attempt state transition first (atomic, with debounce)
@@ -325,7 +346,7 @@ class WisperApp:
             except Exception as e:
                 logger.error(f"Failed to cleanup: {e}")
             self.state_machine.reset_to_idle()
-            print(f"Ready. Hold {HOTKEY.upper()} to record [{self.language_name}]...")
+            print(f"Ready. Hold {HOTKEY_DISPLAY} to record [{self.language_name}]...")
             return
 
         # Show transcribing overlay
@@ -348,7 +369,7 @@ class WisperApp:
             self.language_name = name
             logger.info(f"Language changed to: {name} ({code})")
             print(f"\nLanguage changed to: {name}")
-            print(f"Ready. Hold {HOTKEY.upper()} to record [{name}]...")
+            print(f"Ready. Hold {HOTKEY_DISPLAY} to record [{name}]...")
             if self.gui:
                 self.gui.set_language(name)
         return callback
@@ -369,13 +390,39 @@ class WisperApp:
         self.is_running = False
         icon.stop()
 
-    def check_hotkey_held(self):
-        try:
-            return (keyboard.is_pressed("ctrl") and
-                    keyboard.is_pressed("windows"))
-        except Exception as e:
-            logger.error(f"Error checking hotkey: {e}")
-            return False
+    def _on_key_press(self, key):
+        """Handle key press events from pynput."""
+        with self._key_lock:
+            try:
+                if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
+                    self._ctrl_pressed = True
+                elif key == keyboard.Key.cmd:  # Super/Windows key
+                    self._super_pressed = True
+
+                # Check if hotkey combo is now active
+                if self._ctrl_pressed and self._super_pressed and not self._hotkey_active:
+                    self._hotkey_active = True
+                    # Run in separate thread to not block the listener
+                    threading.Thread(target=self.on_hotkey_press, daemon=True).start()
+            except Exception as e:
+                logger.error(f"Error in key press handler: {e}")
+
+    def _on_key_release(self, key):
+        """Handle key release events from pynput."""
+        with self._key_lock:
+            try:
+                if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
+                    self._ctrl_pressed = False
+                elif key == keyboard.Key.cmd:  # Super/Windows key
+                    self._super_pressed = False
+
+                # Check if hotkey combo was released
+                if self._hotkey_active and (not self._ctrl_pressed or not self._super_pressed):
+                    self._hotkey_active = False
+                    # Run in separate thread to not block the listener
+                    threading.Thread(target=self.on_hotkey_release, daemon=True).start()
+            except Exception as e:
+                logger.error(f"Error in key release handler: {e}")
 
     def create_tray_menu(self):
         language_items = [
@@ -384,7 +431,7 @@ class WisperApp:
         ]
 
         menu = pystray.Menu(
-            item(f"Wisper - Hold {HOTKEY.upper()}", None, enabled=False),
+            item(f"Wisper - Hold {HOTKEY_DISPLAY}", None, enabled=False),
             pystray.Menu.SEPARATOR,
             item("Settings", self.open_settings),
             item("Language", pystray.Menu(*language_items)),
@@ -428,33 +475,26 @@ class WisperApp:
 
         self.run_tray()
 
-        print(f"\nReady. Hold {HOTKEY.upper()} to record [{self.language_name}]...")
+        print(f"\nReady. Hold {HOTKEY_DISPLAY} to record [{self.language_name}]...")
         print("Running in system tray. Right-click tray icon to change language or quit.\n")
 
-        was_pressed = False
+        # Start keyboard listener using pynput
+        keyboard_listener = keyboard.Listener(
+            on_press=self._on_key_press,
+            on_release=self._on_key_release
+        )
+        keyboard_listener.start()
 
         try:
             while self.is_running:
-                try:
-                    is_pressed = self.check_hotkey_held()
-
-                    if is_pressed and not was_pressed:
-                        self.on_hotkey_press()
-                    elif not is_pressed and was_pressed:
-                        self.on_hotkey_release()
-
-                    was_pressed = is_pressed
-                    time.sleep(0.05)
-                except Exception as e:
-                    logger.error(f"Error in main loop: {e}")
-                    time.sleep(0.1)
-
+                time.sleep(0.1)
         except KeyboardInterrupt:
             logger.info("KeyboardInterrupt received")
             print("\nExiting...")
         except Exception as e:
             logger.critical(f"Critical error in main loop: {e}")
         finally:
+            keyboard_listener.stop()
             self.shutdown()
 
     def shutdown(self):
@@ -488,7 +528,7 @@ class WisperApp:
 
 def main():
     logger.info("="*50)
-    logger.info("Wisper V1.0 starting")
+    logger.info("Wisper V1.0 (Linux) starting")
     logger.info("="*50)
 
     try:
