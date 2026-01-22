@@ -2,7 +2,7 @@
 Wisper - Speech to Text Application (Linux Version)
 Version 1.0
 
-Hold Ctrl+Super to record, release to transcribe.
+Hold Ctrl+Super (Windows key) to record, release to transcribe.
 """
 import os
 import sys
@@ -396,7 +396,7 @@ class WisperApp:
             try:
                 if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
                     self._ctrl_pressed = True
-                elif key == keyboard.Key.cmd:  # Super/Windows key
+                elif key == keyboard.Key.cmd_l or key == keyboard.Key.cmd_r or key == keyboard.Key.cmd:
                     self._super_pressed = True
 
                 # Check if hotkey combo is now active
@@ -413,7 +413,7 @@ class WisperApp:
             try:
                 if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
                     self._ctrl_pressed = False
-                elif key == keyboard.Key.cmd:  # Super/Windows key
+                elif key == keyboard.Key.cmd_l or key == keyboard.Key.cmd_r or key == keyboard.Key.cmd:
                     self._super_pressed = False
 
                 # Check if hotkey combo was released

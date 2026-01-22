@@ -124,7 +124,6 @@ class GUIManager:
         self.overlay_window.title("Wisper Status")
         self.overlay_window.overrideredirect(True)
         self.overlay_window.attributes('-topmost', True)
-        self.overlay_window.attributes('-transparentcolor', 'black')
 
         self.overlay_label = tk.Label(
             self.overlay_window,

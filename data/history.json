@@ -28,5 +28,180 @@
     "text": "It seems it's working and now we want to move toward the AttoStart. So there is a whisper version 1 in AttoStart. We need to remove that and add whisper 1. Remove whisper 0, add whisper 1.",
     "language": "en",
     "timestamp": "2026-01-20T09:03:16.399977"
+  },
+  {
+    "text": "Hello, how are you? What's going on?",
+    "language": "en",
+    "timestamp": "2026-01-21T21:23:30.354840"
+  },
+  {
+    "text": "Thank you.",
+    "language": "en",
+    "timestamp": "2026-01-21T21:24:43.111818"
+  },
+  {
+    "text": "Patrick.",
+    "language": "en",
+    "timestamp": "2026-01-21T21:27:19.492762"
+  },
+  {
+    "text": "Mambo Adrian No Lum Thank you. Let's go. so so so so so so so so We be right back Not gonna try! We'll be right back. Slug out of it. Myself's ass. Under the you",
+    "language": "en",
+    "timestamp": "2026-01-21T21:55:10.276258"
+  },
+  {
+    "text": "Hello, how are you?",
+    "language": "en",
+    "timestamp": "2026-01-21T21:55:19.590158"
+  },
+  {
+    "text": "Hello, how are you?",
+    "language": "en",
+    "timestamp": "2026-01-21T21:55:35.569003"
+  },
+  {
+    "text": "read these all files, you will understand what I am saying. There is a pattern where we are rewriting same code and we want to follow that dry principle. So read both of these files and if possible make a common template, a reusable code.",
+    "language": "en",
+    "timestamp": "2026-01-22T10:42:48.007258"
+  },
+  {
+    "text": "So we want to remove duplicate components. We can create reusable common utility classes for the components and use that.",
+    "language": "en",
+    "timestamp": "2026-01-22T10:43:45.043441"
+  },
+  {
+    "text": "Both of these editors are same and one of them support Yjs collaborative editor and one of them does not support. But still there are so many things those are repeated. We can move them into utility files such as common. So text color and the background color we can move into common.txtx Common TS and other things that we can reuse. I think we should reuse and follow the drive principle.",
+    "language": "en",
+    "timestamp": "2026-01-22T11:05:44.625785"
+  },
+  {
+    "text": "Recently I changed my terminal from bash to ZSH and now many of the things is not working such as how brew Linux installed on my laptop which is not recognized by ZSH. Can you see what might be a problem?",
+    "language": "en",
+    "timestamp": "2026-01-22T11:43:24.659535"
+  },
+  {
+    "text": "So we need to create a command that sorry we need to create an extension like forward slash which will show the list of templates name and when I select that template it will pre-fill the collaborative editor wherever I am using that collaborative component. So suppose collaborated editor is used in soapx, objective notes and so many places. Whenever I type forward slash command, drop down or pop up with multiple templates will show, names of templates will show in there. And whenever I select that template, it will pre-populate that input box with that template notes.",
+    "language": "en",
+    "timestamp": "2026-01-22T11:53:20.544536"
+  },
+  {
+    "text": "So there is a problem with our Linux. Whenever our laptop goes into sleep, it doesn't wake properly. Like still moving mouse, pressing bunch of keyboards or keys, it does not wake. Can you check why this is happening? There might be a driver error or the graphics or the power management issue. Can you check our system locks?",
+    "language": "en",
+    "timestamp": "2026-01-22T12:21:35.068486"
+  },
+  {
+    "text": "Wherever we have used the collaborative editor and editor, I want a way, placeholder to add like type forward slash to use snippet. Same as what we did in the objective section and objective TSX and subjective TSX. We need to do same everywhere where we have used the collaborative editor and editor. And one more thing, I also want to do a way to, like, if anywhere I don't want user to allow use snippet, so I want a conditional way on that specific page or the component, I can turn off it by using a flag.",
+    "language": "en",
+    "timestamp": "2026-01-22T12:53:26.771442"
+  },
+  {
+    "text": "Please do not put unnecessary comments. Do not bloat code with comments.",
+    "language": "en",
+    "timestamp": "2026-01-22T12:55:26.829977"
+  },
+  {
+    "text": "I want to work on shared document template. So I want to update UI. But I don't have any actual API which I can use for this template. Can you show me the create a template data so I can use it for like creating UI and then we can reset to the original actual data coming from the API.",
+    "language": "en",
+    "timestamp": "2026-01-22T13:37:50.898974"
+  },
+  {
+    "text": "So we want to modify our existing UI.",
+    "language": "en",
+    "timestamp": "2026-01-22T13:53:06.147882"
+  },
+  {
+    "text": "We want to use this. I have shared two Figma links with you, one for mobile and one for desktop. So we need to implement this design for shared page.",
+    "language": "en",
+    "timestamp": "2026-01-22T13:53:41.917528"
+  },
+  {
+    "text": "Backend does not send clinic data. If it is not sending, we need to update a backend API endpoint to include clinic data.",
+    "language": "en",
+    "timestamp": "2026-01-22T13:57:31.528811"
+  },
+  {
+    "text": "We don't have individual document expiry. All of the links will get expired. This is the screen for expiration. And I'll share desktop one also.",
+    "language": "en",
+    "timestamp": "2026-01-22T14:01:26.108391"
+  },
+  {
+    "text": "And in previous design, we have not included clinic name, email and phone number on the desktop, but we have included in the mobile version. So, take a close look at the desktop version and start implementing.",
+    "language": "en",
+    "timestamp": "2026-01-22T14:01:58.538295"
+  },
+  {
+    "text": "So, dimensions of the card where we show document, the box where we show the document and the downloadable is not matching. In our actual implementation, it's looking too small but in Figma, it is looking good and I think font size and all is not matching.",
+    "language": "en",
+    "timestamp": "2026-01-22T14:04:38.928889"
+  },
+  {
+    "text": "On mobile, the title of that card is in center, but in our implementation on mobile, it's in the left side.",
+    "language": "en",
+    "timestamp": "2026-01-22T14:07:20.828038"
+  },
+  {
+    "text": "Can you check last 10 to 15 minutes system logs? I don't know why my laptop suddenly shut down. It was showing logged out and screen was stuck and computer freezes. I need to force restart computer. Can you check all the systems logs, all the drivers logs? Check over-twin-trong. Check application trongs.",
+    "language": "en",
+    "timestamp": "2026-01-22T14:19:04.439716"
+  },
+  {
+    "text": "Can you check how can we fix this issue? You can check on web and likely give me a problem. I'll check on the internet. As well as how can we switch, how can we avoid such event in the future. Of course this happened so many times.",
+    "language": "en",
+    "timestamp": "2026-01-22T14:22:18.839823"
+  },
+  {
+    "text": "Changes regarding share page has been made. You can merge and deploy to UT. I'll make a PR using",
+    "language": "en",
+    "timestamp": "2026-01-22T14:23:25.285723"
+  },
+  {
+    "text": "So, the changes related to download is made. I have updated UI. Can you like merge",
+    "language": "en",
+    "timestamp": "2026-01-22T14:23:40.275489"
+  },
+  {
+    "text": "Okay, how can I move to the wayland and",
+    "language": "en",
+    "timestamp": "2026-01-22T14:28:34.894686"
+  },
+  {
+    "text": "This sounds reasonable to me but in critics there is a whisper project which allow me to press ctrl plus super key to record my transcript and use that to type for me. With Wayland will this able to work?",
+    "language": "en",
+    "timestamp": "2026-01-22T14:30:25.678576"
+  },
+  {
+    "text": "Okay, apply what you recommend.",
+    "language": "en",
+    "timestamp": "2026-01-22T14:32:37.014685"
+  },
+  {
+    "text": "When we move from old sub-ex to new sub-ex, what will happen to the back-end data?",
+    "language": "en",
+    "timestamp": "2026-01-22T15:42:59.760883"
+  },
+  {
+    "text": "Should we feature flag this new soapx design?",
+    "language": "en",
+    "timestamp": "2026-01-22T15:43:09.058351"
+  },
+  {
+    "text": "Understand how feature flag works in this repository. There are feature flag both in the backend and the frontend. Tell me how should, if I want to create a new feature, how should a new feature flag work?",
+    "language": "en",
+    "timestamp": "2026-01-22T15:44:45.194573"
+  },
+  {
+    "text": "Use your background region and understand how the treatment of TSX works. What is parent component, what are the child components, what child component contains. Everything in detail, create a context document.",
+    "language": "en",
+    "timestamp": "2026-01-22T15:50:16.443846"
+  },
+  {
+    "text": "So this is the version 2 of SOPEX part in the treatment. Whenever in previous we were having all the sections loaded all the time. In the current section we want to like give ability to user to select whichever sections they want to add.",
+    "language": "en",
+    "timestamp": "2026-01-22T16:15:31.517596"
+  },
+  {
+    "text": "So in previous version, we were having node in all of the SOPEX parts, subjective, objective, assessment, plan and the prescription. So in the version 2, we will only have the node as the separate section in which all the nodes will be added. then the plan section diagnostic section we we are not going to have the pro no sis section remove that that's added in the design by mistake and diagnostic plan notes is the default which will be added by system by default and the vitals physical exam body map tx sheet and follow up attachments this will be conditional if user wants to add them they will be added and there is a slightly difference between notes UI and the prescription UI the color of the is slightly tritic and prescription color is slightly primary so the anything added letter will be in the primary color only",
+    "language": "en",
+    "timestamp": "2026-01-22T16:17:08.284046"
   }
 ]
